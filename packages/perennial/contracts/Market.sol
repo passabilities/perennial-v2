@@ -87,15 +87,16 @@ contract Market is IMarket, UInitializable, UOwnable {
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
-        Fixed6 newCollateral // TODO: should we enforce this as a UFixed6?
+        UFixed6 newCollateral,
+        UFixed6 deposit
     ) external {
         CurrentContext memory context = _loadContext(account);
         if (context.protocolParameter.paused) revert MarketPausedError();
 
-        _checkOperator(context, account, newMaker, newLong, newShort, newCollateral);
+        _checkOperator(context, account, newMaker, newLong, newShort, newCollateral, deposit);
         _settle(context, account);
         _sync(context, account);
-        _update(context, account, newMaker, newLong, newShort, newCollateral, false);
+        _update(context, account, newMaker, newLong, newShort, newCollateral, deposit, false);
         _saveContext(context, account);
     }
 
@@ -107,6 +108,16 @@ contract Market is IMarket, UInitializable, UOwnable {
     function updateParameter(MarketParameter memory newParameter) public onlyOwner {
         _parameter.store(newParameter);
         emit ParameterUpdated(newParameter);
+    }
+
+    function claim() external {
+        Local memory newLocal = _locals[msg.sender].read();
+
+        token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(newLocal.claimable) * 1e12));
+        emit RewardClaimed(msg.sender, newLocal.claimable);
+
+        newLocal.clearClaimable();
+        _locals[msg.sender].store(newLocal);
     }
 
     function claimFee() external {
@@ -178,19 +189,22 @@ contract Market is IMarket, UInitializable, UOwnable {
             context.marketParameter.closed
         ) return;
 
-        // compute reward
-        UFixed6 liquidationReward = context.accountPosition.liquidationFee(
+        // compute and record reward
+        UFixed6 liquidationFee = context.local.liquidate(
+            context.accountPosition,
             context.latestVersion,
+            context.currentVersion,
             context.marketParameter,
             context.protocolParameter
-        ).min(UFixed6Lib.from(token.balanceOf()));
-        Fixed6 newCollateral = context.local.collateral.sub(Fixed6Lib.from(liquidationReward));
+        );
 
         // close position
-        _update(context, account, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, newCollateral, true);
-        context.local.liquidation = context.accountPendingPosition.version;
+        _update(context, account, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, true);
 
-        emit Liquidation(account, msg.sender, liquidationReward);
+        // issue reward
+        token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(liquidationFee) * 1e12));
+
+        emit Liquidation(account, msg.sender, liquidationFee);
     }
 
     function _update(
@@ -199,8 +213,9 @@ contract Market is IMarket, UInitializable, UOwnable {
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
-        Fixed6 newCollateral, //TODO: make delta
-        bool force
+        UFixed6 newCollateral,
+        UFixed6 deposit,
+        bool force //TODO: needed still?
     ) private {
         _startGas(context, "_update before-update-after: %s");
 
@@ -216,30 +231,27 @@ contract Market is IMarket, UInitializable, UOwnable {
             newMaker,
             newLong,
             newShort,
+            newCollateral,
+            deposit,
             context.latestVersion,
             context.marketParameter
         );
         if (context.currentVersion > context.pendingPosition.version) context.global.currentId++;
         context.pendingPosition.update(context.global.currentId, context.currentVersion, newOrder);
 
-        // update collateral
-        Fixed6 collateralAmount =
-            context.local.update(newCollateral.eq(Fixed6Lib.MAX) ? context.local.collateral : newCollateral);
-
         // after
         if (!force) _checkPosition(context);
-        if (!force) _checkCollateral(context);
+        if (!force) _checkCollateral(context, account);
 
         _endGas(context);
 
         _startGas(context, "_update fund-events: %s");
 
         // fund
-        if (collateralAmount.sign() == 1) token.pull(msg.sender, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12)); //TODO: use .to6()
-        if (collateralAmount.sign() == -1) token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(collateralAmount.abs()) * 1e12));
+        if (!deposit.isZero()) token.pull(msg.sender, UFixed18.wrap(UFixed6.unwrap(deposit) * 1e12)); //TODO: use .to6()
 
         // events
-        emit Updated(account, context.currentVersion, newMaker, newLong, newShort, newCollateral);
+        emit Updated(account, context.currentVersion, newMaker, newLong, newShort, newCollateral, deposit);
 
         _endGas(context);
     }
@@ -346,7 +358,6 @@ contract Market is IMarket, UInitializable, UOwnable {
 
     function _processPositionAccount(CurrentContext memory context, Position memory newPosition) private view {
         Version memory version = _versions[newPosition.version].read();
-        if (!version.valid) return; // skip processing if invalid
 
         context.local.accumulate(
             context.accountPosition,
@@ -364,15 +375,16 @@ contract Market is IMarket, UInitializable, UOwnable {
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
-        Fixed6 newCollateral
+        UFixed6 newCollateral,
+        UFixed6 deposit
     ) private view {
         if (account == msg.sender) return;                  // sender is operating on own account
         if (factory.operators(account, msg.sender)) return; // sender is operator enabled for this account
         if (
-            context.accountPendingPosition.maker.eq(newMaker) &&
-            context.accountPendingPosition.long.eq(newLong) &&
-            context.accountPendingPosition.short.eq(newShort) &&
-            context.local.collateral.sign() == -1 && newCollateral.isZero()
+            context.accountPendingPosition.magnitude().eq(UFixed6Lib.ZERO) &&
+            (newMaker.isZero() && newLong.isZero() && newShort.isZero()) &&
+            (context.local.collateral.sign() == -1 && newCollateral.isZero()) &&
+            context.local.collateral.abs().eq(deposit)
         ) return; // sender is repaying shortfall for this account
         revert MarketOperatorNotAllowed();
     }
@@ -389,19 +401,28 @@ contract Market is IMarket, UInitializable, UOwnable {
             revert MarketExceedsPendingIdLimitError();
     }
 
-    function _checkCollateral(CurrentContext memory context) private view {
-        if (context.local.collateral.sign() == -1) revert MarketInDebtError();
+    function _checkCollateral(CurrentContext memory context, address account) private view {
+        if (context.local.collateral.sign() == -1) revert MarketInDebtError(); // TODO: shortfall is delayed
 
-        UFixed6 boundedCollateral = UFixed6Lib.from(context.local.collateral);
+        UFixed6 approxCollateral = UFixed6Lib.from(_approxCollateral(context, account));
 
-        if (!context.local.collateral.isZero() && boundedCollateral.lt(context.protocolParameter.minCollateral))
+        if (!context.local.collateral.isZero() && approxCollateral.lt(context.protocolParameter.minCollateral))
             revert MarketCollateralUnderLimitError();
 
         UFixed6 maintenanceAmount =
-            context.accountPosition.maintenance(context.latestVersion, context.marketParameter)
-                .max(context.accountPendingPosition.maintenance(context.latestVersion, context.marketParameter));
+            context.accountPendingPosition.maintenance(context.latestVersion, context.marketParameter);
+        if (maintenanceAmount.gt(approxCollateral)) revert MarketInsufficientCollateralError();
+    }
 
-        if (maintenanceAmount.gt(boundedCollateral)) revert MarketInsufficientCollateralError();
+    function _approxCollateral(CurrentContext memory context, address account) private view returns (Fixed6 approxCollateral) {
+        approxCollateral = context.local.collateral;
+        for (uint256 id = context.accountPosition.id + 1; id <= context.local.currentId; id++) {
+            Position memory accountPendingPosition = id == context.local.currentId ?
+                context.accountPendingPosition :
+                _pendingPositions[account][id].read();
+            approxCollateral = approxCollateral.add(Fixed6Lib.from(accountPendingPosition.deposit));
+            approxCollateral = approxCollateral.min(Fixed6Lib.from(accountPendingPosition.collateral));
+        }
     }
 
     function _oracleVersion(

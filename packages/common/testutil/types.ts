@@ -11,6 +11,8 @@ export interface Position {
   maker: BigNumberish
   long: BigNumberish
   short: BigNumberish
+  collateral: BigNumberish
+  deposit: BigNumberish
   fee: BigNumberish
 }
 
@@ -23,6 +25,7 @@ export interface Global {
 export interface Local {
   currentId: BigNumberish
   collateral: BigNumberish
+  claimable: BigNumberish
   reward: BigNumberish
   liquidation: BigNumberish
 }
@@ -47,6 +50,9 @@ export function expectPositionEq(a: Position, b: Position): void {
   expect(a.maker).to.equal(b.maker)
   expect(a.long).to.equal(b.long)
   expect(a.short).to.equal(b.short)
+  expect(a.collateral).to.equal(b.collateral)
+  expect(a.deposit).to.equal(b.deposit)
+  expect(a.fee).to.equal(b.fee)
 }
 
 export function expectGlobalEq(a: Global, b: Global): void {
@@ -58,6 +64,7 @@ export function expectGlobalEq(a: Global, b: Global): void {
 export function expectLocalEq(a: Local, b: Local): void {
   expect(a.currentId).to.equal(b.currentId)
   expect(a.collateral).to.equal(b.collateral)
+  expect(a.claimable).to.equal(b.claimable)
   expect(a.reward).to.equal(b.reward)
   expect(a.liquidation).to.equal(b.liquidation)
 }

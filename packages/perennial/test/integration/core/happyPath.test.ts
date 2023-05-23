@@ -16,7 +16,7 @@ import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/uti
 //TODO: invalid version test
 //TODO: short tests
 
-describe('Happy Path', () => {
+describe.only('Happy Path', () => {
   let instanceVars: InstanceVars
 
   beforeEach(async () => {
@@ -71,14 +71,15 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
 
-    await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL))
+    await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, COLLATERAL))
       .to.emit(market, 'Updated')
-      .withArgs(user.address, INITIAL_VERSION + 1, POSITION, 0, 0, COLLATERAL)
+      .withArgs(user.address, INITIAL_VERSION + 1, POSITION, 0, 0, COLLATERAL, COLLATERAL)
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
       currentId: 1,
-      collateral: COLLATERAL,
+      collateral: 0,
+      claimable: 0,
       reward: 0,
       liquidation: 0,
     })
@@ -88,6 +89,8 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      collateral: COLLATERAL,
+      deposit: COLLATERAL,
       fee: 0,
     })
     expectPositionEq(await market.positions(user.address), {
@@ -96,6 +99,8 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
 
@@ -111,6 +116,8 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
     expectPositionEq(await market.position(), {
@@ -119,6 +126,8 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
@@ -138,6 +147,7 @@ describe('Happy Path', () => {
     expectLocalEq(await market.locals(user.address), {
       currentId: 1,
       collateral: COLLATERAL,
+      claimable: 0,
       reward: 0,
       liquidation: 0,
     })
@@ -147,6 +157,8 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      collateral: COLLATERAL,
+      deposit: COLLATERAL,
       fee: 0,
     })
     expectPositionEq(await market.positions(user.address), {
@@ -155,6 +167,8 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
 
@@ -170,6 +184,8 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
     expectPositionEq(await market.position(), {
@@ -178,6 +194,8 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
   })
@@ -190,16 +208,17 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
 
-    await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL)
+    await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL, COLLATERAL)
 
-    await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL))
+    await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, 0))
       .to.emit(market, 'Updated')
-      .withArgs(user.address, INITIAL_VERSION + 1, POSITION, 0, 0, COLLATERAL)
+      .withArgs(user.address, INITIAL_VERSION + 1, POSITION, 0, 0, COLLATERAL, 0)
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
       currentId: 1,
-      collateral: COLLATERAL,
+      collateral: 0,
+      claimable: 0,
       reward: 0,
       liquidation: 0,
     })
@@ -209,6 +228,8 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      collateral: COLLATERAL,
+      deposit: COLLATERAL,
       fee: 0,
     })
     expectPositionEq(await market.positions(user.address), {
@@ -217,6 +238,8 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
 
@@ -232,6 +255,8 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
     expectPositionEq(await market.position(), {
@@ -240,6 +265,8 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
@@ -259,6 +286,7 @@ describe('Happy Path', () => {
     expectLocalEq(await market.locals(user.address), {
       currentId: 1,
       collateral: COLLATERAL,
+      claimable: 0,
       reward: 0,
       liquidation: 0,
     })
@@ -268,6 +296,8 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      collateral: COLLATERAL,
+      deposit: COLLATERAL,
       fee: 0,
     })
     expectPositionEq(await market.positions(user.address), {
@@ -276,6 +306,8 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
 
@@ -291,6 +323,8 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
     expectPositionEq(await market.position(), {
@@ -299,6 +333,8 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
     expectGlobalEq(await market.global(), {
@@ -316,15 +352,16 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
 
-    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
-    await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, COLLATERAL)
+    await expect(market.connect(user).update(user.address, 0, 0, 0, 0, 0))
       .to.emit(market, 'Updated')
-      .withArgs(user.address, INITIAL_VERSION + 1, 0, 0, 0, COLLATERAL)
+      .withArgs(user.address, INITIAL_VERSION + 1, 0, 0, 0, 0, 0)
 
     // User state
     expectLocalEq(await market.locals(user.address), {
       currentId: 1,
-      collateral: COLLATERAL,
+      collateral: 0,
+      claimable: 0,
       reward: 0,
       liquidation: 0,
     })
@@ -334,6 +371,8 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: COLLATERAL,
       fee: 0,
     })
     expectPositionEq(await market.positions(user.address), {
@@ -342,6 +381,8 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
 
@@ -357,6 +398,8 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
     expectPositionEq(await market.position(), {
@@ -365,6 +408,8 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
@@ -385,17 +430,18 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
 
-    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
-    await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL)
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, COLLATERAL)
+    await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL, 0)
 
-    await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL))
+    await expect(market.connect(user).update(user.address, 0, 0, 0, 0, 0))
       .to.emit(market, 'Updated')
-      .withArgs(user.address, INITIAL_VERSION + 1, 0, 0, 0, COLLATERAL)
+      .withArgs(user.address, INITIAL_VERSION + 1, 0, 0, 0, 0, 0)
 
     // User state
     expectLocalEq(await market.locals(user.address), {
       currentId: 1,
-      collateral: COLLATERAL,
+      collateral: 0,
+      claimable: 0,
       reward: 0,
       liquidation: 0,
     })
@@ -405,6 +451,8 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: COLLATERAL,
       fee: 0,
     })
     expectPositionEq(await market.positions(user.address), {
@@ -413,6 +461,8 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
 
@@ -428,6 +478,8 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
     expectPositionEq(await market.position(), {
@@ -436,6 +488,8 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
@@ -458,15 +512,16 @@ describe('Happy Path', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
-    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL)
-    await expect(market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL))
+    await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, COLLATERAL)
+    await expect(market.connect(userB).update(userB.address, 0, POSITION_B, 0, COLLATERAL, COLLATERAL))
       .to.emit(market, 'Updated')
-      .withArgs(userB.address, INITIAL_VERSION + 1, 0, POSITION_B, 0, COLLATERAL)
+      .withArgs(userB.address, INITIAL_VERSION + 1, 0, POSITION_B, 0, COLLATERAL, COLLATERAL)
 
     // User State
     expectLocalEq(await market.locals(user.address), {
       currentId: 1,
-      collateral: COLLATERAL,
+      collateral: 0,
+      claimable: 0,
       reward: 0,
       liquidation: 0,
     })
@@ -476,6 +531,8 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: 0,
       short: 0,
+      collateral: COLLATERAL,
+      deposit: COLLATERAL,
       fee: 0,
     })
     expectPositionEq(await market.positions(user.address), {
@@ -484,12 +541,15 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
 
     expectLocalEq(await market.locals(userB.address), {
       currentId: 1,
-      collateral: COLLATERAL,
+      collateral: 0,
+      claimable: 0,
       reward: 0,
       liquidation: 0,
     })
@@ -499,6 +559,8 @@ describe('Happy Path', () => {
       maker: 0,
       long: POSITION_B,
       short: 0,
+      collateral: COLLATERAL,
+      deposit: COLLATERAL,
       fee: 0,
     })
     expectPositionEq(await market.positions(userB.address), {
@@ -507,6 +569,8 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
 
@@ -522,6 +586,8 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: POSITION_B,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
     expectPositionEq(await market.position(), {
@@ -530,6 +596,8 @@ describe('Happy Path', () => {
       maker: 0,
       long: 0,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
     expectVersionEq(await market.versions(INITIAL_VERSION), {
@@ -560,6 +628,8 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: POSITION_B,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
     expectPositionEq(await market.position(), {
@@ -568,12 +638,15 @@ describe('Happy Path', () => {
       maker: POSITION,
       long: POSITION_B,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
 
     expectLocalEq(await market.locals(userB.address), {
       currentId: 1,
       collateral: COLLATERAL.add(BigNumber.from('1249431')),
+      claimable: 0,
       reward: 0,
       liquidation: 0,
     })
@@ -583,6 +656,8 @@ describe('Happy Path', () => {
       maker: 0,
       long: POSITION_B,
       short: 0,
+      collateral: COLLATERAL,
+      deposit: COLLATERAL,
       fee: 0,
     })
     expectPositionEq(await market.positions(userB.address), {
@@ -591,6 +666,8 @@ describe('Happy Path', () => {
       maker: 0,
       long: POSITION_B,
       short: 0,
+      collateral: 0,
+      deposit: 0,
       fee: 0,
     })
   })
