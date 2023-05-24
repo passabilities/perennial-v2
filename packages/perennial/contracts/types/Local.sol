@@ -56,7 +56,7 @@ library LocalLib {
         // collateral
         self.collateral = self.collateral.add(Fixed6Lib.from(toPosition.deposit));
         if (self.collateral.gt(Fixed6Lib.from(toPosition.collateral))) {
-            self.claimable = self.claimable.add(toPosition.collateral.sub(UFixed6Lib.from(self.collateral)));
+            self.claimable = self.claimable.add(UFixed6Lib.from(self.collateral).sub(toPosition.collateral));
             self.collateral = Fixed6Lib.from(toPosition.collateral);
         }
     }
@@ -67,11 +67,13 @@ library LocalLib {
         OracleVersion memory latestOracleVersion,
         uint256 currentVersion,
         MarketParameter memory marketParameter,
-        ProtocolParameter memory protocolParameter
+        ProtocolParameter memory protocolParameter,
+        UFixed6 liquidationMax
     ) internal pure returns (UFixed6 liquidationFee) {
         liquidationFee = position.maintenance(latestOracleVersion, marketParameter)
             .max(protocolParameter.minCollateral)
-            .mul(protocolParameter.liquidationFee);
+            .mul(protocolParameter.liquidationFee)
+            .min(liquidationMax);
 
         self.collateral = self.collateral.sub(Fixed6Lib.from(liquidationFee));
         self.liquidation = currentVersion;

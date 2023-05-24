@@ -84,7 +84,7 @@ library PositionLib {
             newMaker,
             newLong,
             newShort,
-            newCollateral,
+            newCollateral.min(UFixed6Lib.MAX_88), // TODO: better way to do this?
             self.deposit.add(deposit),
             self.fee.add(newOrder.fee)
         );

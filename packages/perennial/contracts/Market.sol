@@ -185,7 +185,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         UFixed6 maintenance = context.accountPosition.maintenance(context.latestVersion, context.marketParameter);
         if (
             context.local.collateral.max(Fixed6Lib.ZERO).gte(Fixed6Lib.from(maintenance)) ||
-            context.local.liquidation > context.accountPosition.version ||
+            context.local.liquidation > context.accountPosition.version || // TODO: duplicate?
             context.marketParameter.closed
         ) return;
 
@@ -195,7 +195,8 @@ contract Market is IMarket, UInitializable, UOwnable {
             context.latestVersion,
             context.currentVersion,
             context.marketParameter,
-            context.protocolParameter
+            context.protocolParameter,
+            UFixed6.wrap(UFixed18.unwrap(token.balanceOf()) / 1e12)
         );
 
         // close position
@@ -213,14 +214,14 @@ contract Market is IMarket, UInitializable, UOwnable {
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort,
-        UFixed6 newCollateral,
+        UFixed6 newCollateral, //TODO: these being UFixed6 gives weird results when using MAX because collateral is Fixed6
         UFixed6 deposit,
-        bool force //TODO: needed still?
+        bool force
     ) private {
         _startGas(context, "_update before-update-after: %s");
 
         // before
-        if (context.local.liquidation > context.accountPosition.version) revert MarketInLiquidationError();
+        if (!force && context.local.liquidation > context.accountPosition.version) revert MarketInLiquidationError();
         if (context.marketParameter.closed && !newMaker.add(newLong).add(newShort).isZero()) revert MarketClosedError(); // TODO: duplicate?
 
         // update position
@@ -243,6 +244,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         if (!force) _checkPosition(context);
         if (!force) _checkCollateral(context, account);
 
+        _endGas(context);
         _endGas(context);
 
         _startGas(context, "_update fund-events: %s");
@@ -307,7 +309,6 @@ contract Market is IMarket, UInitializable, UOwnable {
             context.global.currentId != context.position.id &&
             (nextPosition = _pendingPosition[context.position.id + 1].read()).ready(context.latestVersion)
         ) _processPosition(context, nextPosition);
-
         while (
             context.local.currentId != context.accountPosition.id &&
             (nextPosition = _pendingPositions[account][context.accountPosition.id + 1].read()).ready(context.latestVersion)
@@ -323,13 +324,17 @@ contract Market is IMarket, UInitializable, UOwnable {
 
         if (context.latestVersion.version > context.position.version) {
             nextPosition = _pendingPosition[context.position.id].read();
-            nextPosition.version = context.latestVersion.version;
+            nextPosition.version = context.latestVersion.version; // TODO: helper to clean this?
+            nextPosition.collateral = UFixed6Lib.from(Fixed6Lib.MAX);
+            nextPosition.deposit = UFixed6Lib.ZERO;
             nextPosition.fee = UFixed6Lib.ZERO;
             _processPosition(context, nextPosition);
         }
         if (context.latestVersion.version > context.accountPosition.version) {
             nextPosition = _pendingPositions[account][context.accountPosition.id].read();
             nextPosition.version = context.latestVersion.version;
+            nextPosition.collateral = UFixed6Lib.from(Fixed6Lib.MAX);
+            nextPosition.deposit = UFixed6Lib.ZERO;
             nextPosition.fee = UFixed6Lib.ZERO;
             _processPositionAccount(context, nextPosition);
         }
