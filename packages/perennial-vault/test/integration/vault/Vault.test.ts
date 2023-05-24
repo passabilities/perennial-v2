@@ -185,10 +185,18 @@ describe('Vault', () => {
     await asset.connect(user2).approve(market.address, ethers.constants.MaxUint256)
     await asset.connect(btcUser1).approve(btcMarket.address, ethers.constants.MaxUint256)
     await asset.connect(btcUser2).approve(btcMarket.address, ethers.constants.MaxUint256)
-    await market.connect(user).update(user.address, parse6decimal('200'), 0, 0, parse6decimal('100000'))
-    await market.connect(user2).update(user2.address, 0, parse6decimal('100'), 0, parse6decimal('100000'))
-    await btcMarket.connect(btcUser1).update(btcUser1.address, parse6decimal('20'), 0, 0, parse6decimal('100000'))
-    await btcMarket.connect(btcUser2).update(btcUser2.address, 0, parse6decimal('10'), 0, parse6decimal('100000'))
+    await market
+      .connect(user)
+      .update(user.address, parse6decimal('200'), 0, 0, parse6decimal('100000'), parse6decimal('100000'))
+    await market
+      .connect(user2)
+      .update(user2.address, 0, parse6decimal('100'), 0, parse6decimal('100000'), parse6decimal('100000'))
+    await btcMarket
+      .connect(btcUser1)
+      .update(btcUser1.address, parse6decimal('20'), 0, 0, parse6decimal('100000'), parse6decimal('100000'))
+    await btcMarket
+      .connect(btcUser2)
+      .update(btcUser2.address, 0, parse6decimal('10'), 0, parse6decimal('100000'), parse6decimal('100000'))
 
     // Unfortunately, we can't make mocks of existing contracts.
     // So, we make a fake and initialize it with the values that the real contract had at this block.
@@ -915,7 +923,7 @@ describe('Vault', () => {
       await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
       await market
         .connect(perennialUser)
-        .update(perennialUser.address, parse6decimal('480'), 0, 0, parse6decimal('400000'))
+        .update(perennialUser.address, parse6decimal('480'), 0, 0, parse6decimal('400000'), parse6decimal('400000'))
       await updateOracle()
       await vault.sync()
 
@@ -939,7 +947,9 @@ describe('Vault', () => {
       const makerAvailable = (await market.parameter()).makerLimit.sub(
         (await market.pendingPosition((await market.global()).currentId)).maker,
       )
-      await market.connect(perennialUser).update(perennialUser.address, makerAvailable, 0, 0, parse6decimal('400000'))
+      await market
+        .connect(perennialUser)
+        .update(perennialUser.address, makerAvailable, 0, 0, parse6decimal('400000'), parse6decimal('400000'))
 
       await updateOracle()
       await vault.sync()
@@ -969,7 +979,7 @@ describe('Vault', () => {
       await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
       await market
         .connect(perennialUser)
-        .update(perennialUser.address, 0, parse6decimal('110'), 0, parse6decimal('1000000'))
+        .update(perennialUser.address, 0, parse6decimal('110'), 0, parse6decimal('1000000'), parse6decimal('1000000'))
 
       await updateOracle()
       await vault.sync()
@@ -1103,8 +1113,12 @@ describe('Vault', () => {
       context('short', () => {
         beforeEach(async () => {
           // get utilization closer to target in order to trigger pnl on price deviation
-          await market.connect(user2).update(user2.address, 0, 0, parse6decimal('100'), parse6decimal('100000'))
-          await btcMarket.connect(btcUser2).update(btcUser2.address, 0, 0, parse6decimal('10'), parse6decimal('100000'))
+          await market
+            .connect(user2)
+            .update(user2.address, 0, 0, parse6decimal('100'), parse6decimal('100000'), parse6decimal('100000'))
+          await btcMarket
+            .connect(btcUser2)
+            .update(btcUser2.address, 0, 0, parse6decimal('10'), parse6decimal('100000'), parse6decimal('100000'))
           await updateOracle()
           await vault.sync()
         })
@@ -1198,8 +1212,7 @@ describe('Vault', () => {
         await market.connect(user).settle(vault.address)
         await market.connect(user).settle(user2.address)
 
-        const user2Collateral = (await market.locals(user2.address)).collateral
-        await market.connect(user2).update(user2.address, 0, 0, 0, user2Collateral)
+        await market.connect(user2).update(user2.address, 0, 0, 0, constants.MaxUint256, 0)
 
         // 4. Settle the vault to recover and rebalance
         await updateOracle() // let take settle at high price

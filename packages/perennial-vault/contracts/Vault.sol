@@ -479,7 +479,8 @@ contract Vault is IVault, VaultDefinition, UInitializable {
             target.targetPosition,
             UFixed6Lib.ZERO,
             UFixed6Lib.ZERO,
-            Fixed6Lib.from(_toU6(target.targetCollateral))
+            UFixed6Lib.MAX,
+            Fixed6Lib.from(_toU6(target.targetCollateral)).sub(_toS6(marketContext.collateral))
         );
     }
 
