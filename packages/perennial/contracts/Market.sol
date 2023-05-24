@@ -88,7 +88,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         UFixed6 newLong,
         UFixed6 newShort,
         UFixed6 newCollateral,
-        UFixed6 deposit
+        Fixed6 deposit
     ) external {
         CurrentContext memory context = _loadContext(account);
         if (context.protocolParameter.paused) revert MarketPausedError();
@@ -200,7 +200,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         );
 
         // close position
-        _update(context, account, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, true);
+        _update(context, account, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, Fixed6Lib.ZERO, true);
 
         // issue reward
         token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(liquidationFee) * 1e12));
@@ -215,7 +215,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         UFixed6 newLong,
         UFixed6 newShort,
         UFixed6 newCollateral, //TODO: these being UFixed6 gives weird results when using MAX because collateral is Fixed6
-        UFixed6 deposit,
+        Fixed6 deposit,
         bool force
     ) private {
         _startGas(context, "_update before-update-after: %s");
@@ -250,7 +250,8 @@ contract Market is IMarket, UInitializable, UOwnable {
         _startGas(context, "_update fund-events: %s");
 
         // fund
-        if (!deposit.isZero()) token.pull(msg.sender, UFixed18.wrap(UFixed6.unwrap(deposit) * 1e12)); //TODO: use .to6()
+        if (deposit.sign() == 1) token.pull(msg.sender, UFixed18.wrap(UFixed6.unwrap(deposit.abs()) * 1e12)); //TODO: use .to6()
+        if (deposit.sign() == -1) token.push(msg.sender, UFixed18.wrap(UFixed6.unwrap(deposit.abs()) * 1e12)); //TODO: use .to6()
 
         // events
         emit Updated(account, context.currentVersion, newMaker, newLong, newShort, newCollateral, deposit);
@@ -326,7 +327,7 @@ contract Market is IMarket, UInitializable, UOwnable {
             nextPosition = _pendingPosition[context.position.id].read();
             nextPosition.version = context.latestVersion.version; // TODO: helper to clean this?
             nextPosition.collateral = UFixed6Lib.from(Fixed6Lib.MAX);
-            nextPosition.deposit = UFixed6Lib.ZERO;
+            nextPosition.deposit = Fixed6Lib.ZERO;
             nextPosition.fee = UFixed6Lib.ZERO;
             _processPosition(context, nextPosition);
         }
@@ -334,7 +335,7 @@ contract Market is IMarket, UInitializable, UOwnable {
             nextPosition = _pendingPositions[account][context.accountPosition.id].read();
             nextPosition.version = context.latestVersion.version;
             nextPosition.collateral = UFixed6Lib.from(Fixed6Lib.MAX);
-            nextPosition.deposit = UFixed6Lib.ZERO;
+            nextPosition.deposit = Fixed6Lib.ZERO;
             nextPosition.fee = UFixed6Lib.ZERO;
             _processPositionAccount(context, nextPosition);
         }
@@ -381,7 +382,7 @@ contract Market is IMarket, UInitializable, UOwnable {
         UFixed6 newLong,
         UFixed6 newShort,
         UFixed6 newCollateral,
-        UFixed6 deposit
+        Fixed6 deposit
     ) private view {
         if (account == msg.sender) return;                  // sender is operating on own account
         if (factory.operators(account, msg.sender)) return; // sender is operator enabled for this account
@@ -389,7 +390,7 @@ contract Market is IMarket, UInitializable, UOwnable {
             context.accountPendingPosition.magnitude().eq(UFixed6Lib.ZERO) &&
             (newMaker.isZero() && newLong.isZero() && newShort.isZero()) &&
             (context.local.collateral.sign() == -1 && newCollateral.isZero()) &&
-            context.local.collateral.abs().eq(deposit)
+            context.local.collateral.abs().eq(deposit.abs())
         ) return; // sender is repaying shortfall for this account
         revert MarketOperatorNotAllowed();
     }
@@ -425,7 +426,7 @@ contract Market is IMarket, UInitializable, UOwnable {
             Position memory accountPendingPosition = id == context.local.currentId ?
                 context.accountPendingPosition :
                 _pendingPositions[account][id].read();
-            approxCollateral = approxCollateral.add(Fixed6Lib.from(accountPendingPosition.deposit));
+            approxCollateral = approxCollateral.add(accountPendingPosition.deposit);
             approxCollateral = approxCollateral.min(Fixed6Lib.from(accountPendingPosition.collateral));
         }
     }

@@ -54,7 +54,7 @@ library LocalLib {
         }
 
         // collateral
-        self.collateral = self.collateral.add(Fixed6Lib.from(toPosition.deposit));
+        self.collateral = self.collateral.add(toPosition.deposit);
         if (self.collateral.gt(Fixed6Lib.from(toPosition.collateral))) {
             self.claimable = self.claimable.add(UFixed6Lib.from(self.collateral).sub(toPosition.collateral));
             self.collateral = Fixed6Lib.from(toPosition.collateral);

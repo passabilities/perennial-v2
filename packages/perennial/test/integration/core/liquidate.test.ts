@@ -81,10 +81,14 @@ describe('Liquidate', () => {
 
     // Settle the market with a new oracle version
     await chainlink.next()
-    await market.settle(constants.AddressZero)
+    await market.settle(userB.address)
+
+    const userBCollateral = (await market.locals(userB.address)).collateral
+    await expect(
+      market.connect(userB).update(userB.address, 0, 0, 0, 0, userBCollateral.mul(-1).sub(1)),
+    ).to.be.revertedWith('MarketInDebtError()') // underflow
 
     await chainlink.nextWithPriceModification(price => price.mul(2))
-
     await market.connect(userB).settle(user.address) // liquidate
     expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-3154014381'))
 

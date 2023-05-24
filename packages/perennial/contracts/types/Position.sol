@@ -14,7 +14,7 @@ struct Position {
     UFixed6 long;
     UFixed6 short;
     UFixed6 collateral; // TODO: unused in the non-pending and global instance
-    UFixed6 deposit; // TODO: unused in the non-pending and global instance
+    Fixed6 deposit; // TODO: unused in the non-pending and global instance
     UFixed6 fee; // TODO: unused in the non-pending instances
 }
 using PositionLib for Position global;
@@ -28,7 +28,7 @@ struct StoredPosition { // TODO: pack this better
 
     // slot 2
     uint88 _collateral;
-    uint88 _deposit;
+    int88 _deposit;
     uint80 _fee;
 }
 struct PositionStorage { StoredPosition value; }
@@ -63,7 +63,7 @@ library PositionLib {
         UFixed6 newLong,
         UFixed6 newShort,
         UFixed6 newCollateral,
-        UFixed6 deposit,
+        Fixed6 deposit,
         OracleVersion memory latestVersion,
         MarketParameter memory marketParameter
     ) internal pure returns (Order memory newOrder) {
@@ -75,7 +75,7 @@ library PositionLib {
         newOrder.registerFee(latestVersion, marketParameter);
 
         if (self.id != currentId) {
-            self.deposit = UFixed6Lib.ZERO;
+            self.deposit = Fixed6Lib.ZERO;
             self.fee = UFixed6Lib.ZERO;
         }
         (self.id, self.version, self.maker, self.long, self.short, self.collateral, self.deposit, self.fee) = (
@@ -177,7 +177,7 @@ library PositionStorageLib {
             UFixed6.wrap(uint256(storedValue._long)),
             UFixed6.wrap(uint256(storedValue._short)),
             UFixed6.wrap(uint256(storedValue._collateral)),
-            UFixed6.wrap(uint256(storedValue._deposit)),
+            Fixed6.wrap(int256(storedValue._deposit)),
             UFixed6.wrap(uint256(storedValue._fee))
         );
     }
@@ -189,7 +189,8 @@ library PositionStorageLib {
         if (newValue.long.gt(UFixed6Lib.MAX_64)) revert PositionStorageInvalidError();
         if (newValue.short.gt(UFixed6Lib.MAX_64)) revert PositionStorageInvalidError();
         if (newValue.collateral.gt(UFixed6Lib.MAX_88)) revert PositionStorageInvalidError();
-        if (newValue.deposit.gt(UFixed6Lib.MAX_88)) revert PositionStorageInvalidError();
+        if (newValue.deposit.gt(Fixed6Lib.MAX_88)) revert PositionStorageInvalidError();
+        if (newValue.deposit.lt(Fixed6Lib.MIN_88)) revert PositionStorageInvalidError();
         if (newValue.fee.gt(UFixed6Lib.MAX_80)) revert PositionStorageInvalidError();
 
         self.value = StoredPosition(
@@ -199,7 +200,7 @@ library PositionStorageLib {
             uint64(UFixed6.unwrap(newValue.long)),
             uint64(UFixed6.unwrap(newValue.short)),
             uint88(UFixed6.unwrap(newValue.collateral)),
-            uint88(UFixed6.unwrap(newValue.deposit)),
+            int88(Fixed6.unwrap(newValue.deposit)),
             uint80(UFixed6.unwrap(newValue.fee))
         );
     }
