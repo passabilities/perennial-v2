@@ -147,28 +147,30 @@ library RiskParameterStorageLib {
         if (newValue.virtualTaker.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
         if (newValue.staleAfter > uint256(type(uint24).max)) revert RiskParameterStorageInvalidError();
 
-        self.value = StoredRiskParameter({
-            maintenance: uint24(UFixed6.unwrap(newValue.maintenance)),
-            takerFee: uint24(UFixed6.unwrap(newValue.takerFee)),
-            takerSkewFee: uint24(UFixed6.unwrap(newValue.takerSkewFee)),
-            takerImpactFee: uint24(UFixed6.unwrap(newValue.takerImpactFee)),
-            makerFee: uint24(UFixed6.unwrap(newValue.makerFee)),
-            makerImpactFee: uint24(UFixed6.unwrap(newValue.makerImpactFee)),
-            makerLimit: uint48(UFixed6.unwrap(newValue.makerLimit)),
-            efficiencyLimit: uint24(UFixed6.unwrap(newValue.efficiencyLimit)),
-            liquidationFee: uint24(UFixed6.unwrap(newValue.liquidationFee)),
-            minLiquidationFee: uint48(UFixed6.unwrap(newValue.minLiquidationFee)),
-            maxLiquidationFee: uint48(UFixed6.unwrap(newValue.maxLiquidationFee)),
-            utilizationCurveMinRate: uint32(UFixed6.unwrap(newValue.utilizationCurve.minRate)),
-            utilizationCurveMaxRate: uint32(UFixed6.unwrap(newValue.utilizationCurve.maxRate)),
-            utilizationCurveTargetRate: uint32(UFixed6.unwrap(newValue.utilizationCurve.targetRate)),
-            utilizationCurveTargetUtilization: uint24(UFixed6.unwrap(newValue.utilizationCurve.targetUtilization)),
-            pControllerK: uint40(UFixed6.unwrap(newValue.pController.k)),
-            pControllerMax: uint32(UFixed6.unwrap(newValue.pController.max)),
-            minMaintenance: uint48(UFixed6.unwrap(newValue.minMaintenance)),
-            virtualTaker: uint48(UFixed6.unwrap(newValue.virtualTaker)),
-            staleAfter: uint24(newValue.staleAfter),
-            makerReceiveOnly: newValue.makerReceiveOnly
-        });
+        self.value = StoredRiskParameter(
+            uint48(UFixed6.unwrap(newValue.makerLimit)),
+            uint40(UFixed6.unwrap(newValue.pController.k)),
+            uint32(UFixed6.unwrap(newValue.utilizationCurve.minRate)),
+            uint32(UFixed6.unwrap(newValue.utilizationCurve.maxRate)),
+            uint24(UFixed6.unwrap(newValue.utilizationCurve.targetUtilization)),
+            uint24(UFixed6.unwrap(newValue.takerFee)),
+            uint24(UFixed6.unwrap(newValue.makerFee)),
+            uint24(UFixed6.unwrap(newValue.maintenance)),
+            newValue.makerReceiveOnly,
+
+            uint32(UFixed6.unwrap(newValue.utilizationCurve.targetRate)),
+            uint32(UFixed6.unwrap(newValue.pController.max)),
+            uint24(UFixed6.unwrap(newValue.takerSkewFee)),
+            uint24(UFixed6.unwrap(newValue.takerImpactFee)),
+            uint24(UFixed6.unwrap(newValue.makerImpactFee)),
+            uint48(UFixed6.unwrap(newValue.minMaintenance)),
+            uint24(newValue.staleAfter),
+            uint48(UFixed6.unwrap(newValue.virtualTaker)),
+
+            uint24(UFixed6.unwrap(newValue.liquidationFee)),
+            uint48(UFixed6.unwrap(newValue.minLiquidationFee)),
+            uint48(UFixed6.unwrap(newValue.maxLiquidationFee)),
+            uint24(UFixed6.unwrap(newValue.efficiencyLimit))
+        );
     }
 }

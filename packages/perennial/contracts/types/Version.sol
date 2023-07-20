@@ -315,6 +315,17 @@ library VersionLib {
 library VersionStorageLib {
     error VersionStorageInvalidError();
 
+    uint256 private constant SLOT_LENGTH = 256;
+
+    uint256 private constant VALID_LENGTH = 8; uint256 private constant VALID_OFFSET = SLOT_LENGTH - VALID_LENGTH;
+    uint256 private constant MAKER_VALUE_LENGTH = 88; uint256 private constant MAKER_VALUE_OFFSET = VALID_OFFSET - MAKER_VALUE_LENGTH;
+    uint256 private constant LONG_VALUE_LENGTH = 80; uint256 private constant LONG_VALUE_OFFSET = MAKER_VALUE_OFFSET - LONG_VALUE_LENGTH;
+    uint256 private constant SHORT_VALUE_LENGTH = 80;
+
+    uint256 private constant MAKER_REWARD_LENGTH = 80; uint256 private constant MAKER_REWARD_OFFSET = SLOT_LENGTH - MAKER_REWARD_LENGTH;
+    uint256 private constant LONG_REWARD_LENGTH = 88; uint256 private constant LONG_REWARD_OFFSET = MAKER_REWARD_OFFSET - LONG_REWARD_LENGTH;
+    uint256 private constant SHORT_REWARD_LENGTH = 88;
+    
     function read(VersionStorage storage self) internal view returns (Version memory) {
         StoredVersion memory storedValue = self.value;
         return Version(
@@ -339,15 +350,20 @@ library VersionStorageLib {
         if (newValue.longReward._value.gt(UFixed6.wrap(type(uint80).max))) revert VersionStorageInvalidError();
         if (newValue.shortReward._value.gt(UFixed6.wrap(type(uint80).max))) revert VersionStorageInvalidError();
 
-        self.value = StoredVersion(
-            newValue.valid,
-            int88(Fixed6.unwrap(newValue.makerValue._value)),
-            int80(Fixed6.unwrap(newValue.longValue._value)),
-            int80(Fixed6.unwrap(newValue.shortValue._value)),
-            uint88(UFixed6.unwrap(newValue.makerReward._value)),
-            uint80(UFixed6.unwrap(newValue.longReward._value)),
-            uint80(UFixed6.unwrap(newValue.shortReward._value)),
-            bytes1(0)
-        );
+        uint256 encoded0 =
+            uint256((newValue.valid ? 1 : 0) << (SLOT_LENGTH - VALID_LENGTH)) >> VALID_OFFSET |
+            uint256(Fixed6.unwrap(newValue.makerValue._value) << (SLOT_LENGTH - MAKER_VALUE_LENGTH)) >> MAKER_VALUE_OFFSET |
+            uint256(Fixed6.unwrap(newValue.longValue._value) << (SLOT_LENGTH - LONG_VALUE_LENGTH)) >> LONG_VALUE_OFFSET |
+            uint256(Fixed6.unwrap(newValue.shortValue._value) << (SLOT_LENGTH - SHORT_VALUE_LENGTH));
+
+        uint256 encoded1 =
+            uint256(UFixed6.unwrap(newValue.makerReward._value) << (SLOT_LENGTH - MAKER_REWARD_LENGTH)) >> MAKER_REWARD_OFFSET |
+            uint256(UFixed6.unwrap(newValue.longReward._value) << (SLOT_LENGTH - LONG_REWARD_LENGTH)) >> LONG_REWARD_OFFSET |
+            uint256(UFixed6.unwrap(newValue.shortReward._value) << (SLOT_LENGTH - SHORT_REWARD_LENGTH));
+
+        assembly {
+            sstore(self.slot, encoded0)
+            sstore(add(self.slot, 1), encoded1)
+        }
     }
 }
