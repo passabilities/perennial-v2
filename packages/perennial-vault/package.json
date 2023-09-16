@@ -1,17 +1,16 @@
 {
   "name": "@equilibria/perennial-v2-vault",
-  "version": "1.0.0",
+  "version": "1.0.0-rc4",
   "description": "Perennial V2 Vault",
   "files": [
-    "contracts",
-    "artifacts/contracts",
-    "deployments/!(localhost)",
-    "dist"
+    "contracts/interfaces",
+    "contracts/types",
+    "artifacts/contracts"
   ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "scripts": {
-    "build": "yarn compile && tsc -p tsconfig.build.json",
+    "build": "yarn compile",
     "compile": "hardhat compile",
     "deploy": "OPTIMIZER_ENABLED=true hardhat deploy",
     "verify": "hardhat etherscan-verify --sleep --solc-input",

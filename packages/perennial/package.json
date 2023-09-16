@@ -1,11 +1,11 @@
 {
   "name": "@equilibria/perennial-v2",
-  "version": "1.0.0",
+  "version": "1.0.0-rc4",
   "description": "Perennial V2 Core",
   "files": [
     "contracts/interfaces",
-    "artifacts/contracts/interfaces",
-    "deployments/!(localhost)"
+    "contracts/types",
+    "artifacts/contracts/interfaces"
   ],
   "scripts": {
     "build": "yarn compile",
