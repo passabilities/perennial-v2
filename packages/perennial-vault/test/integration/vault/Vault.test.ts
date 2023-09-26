@@ -1,5 +1,5 @@
 import HRE from 'hardhat'
-import { impersonate } from '../../../../common/testutil'
+import { impersonate, time } from '../../../../common/testutil'
 import { deployProductOnMainnetFork } from '../helpers/setupHelpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
@@ -1352,6 +1352,45 @@ describe('Vault', () => {
 
       const totalAssets = BigNumber.from('10906553351')
       expect((await vault.accounts(constants.AddressZero)).assets).to.equal(totalAssets)
+    })
+
+    it('handles invalid positions', async () => {
+      await fundWallet(asset, user, ethers.utils.parseEther('1000000'))
+      await updateOracle()
+      const oracleStatus = await oracle.status()
+      oracle.status.returns([oracleStatus[0], oracleStatus[0].timestamp.add(10)])
+      oracle.current.returns(oracleStatus[0].timestamp.add(10))
+      await market.connect(user).update(user.address, parse6decimal('950'), 0, 0, parse6decimal('800000'), false)
+      // await updateOracle(undefined, undefined, true, true)
+      oracle.status.returns([oracleStatus[0], oracleStatus[0].timestamp.add(20)])
+      oracle.current.returns(oracleStatus[0].timestamp.add(20))
+      await market.connect(user).update(user.address, parse6decimal('1000'), 0, 0, 0, false)
+      // await updateOracle(undefined, undefined, true, true)
+
+      oracle.at.whenCalledWith(oracleStatus[0].timestamp.add(10)).returns({
+        timestamp: oracleStatus[0].timestamp.add(10),
+        price: originalOraclePrice,
+        valid: false,
+      })
+      oracle.at.whenCalledWith(oracleStatus[0].timestamp.add(20)).returns({
+        timestamp: oracleStatus[0].timestamp.add(20),
+        price: originalOraclePrice,
+        valid: false,
+      })
+
+      await updateOracle()
+
+      const largeDeposit = parse6decimal('10000')
+      await vault.connect(user).update(user.address, largeDeposit, 0, 0)
+      await updateOracle()
+
+      await vault.settle(user.address)
+
+      // Now we should have opened positions.
+      // The positions should be equal to largeDeposit * leverage originalOraclePrice.
+      // Invalidations should be correctly handled so the correct target position is reached
+      expect(await position()).to.equal(largeDeposit.mul(leverage).mul(4).div(5).div(originalOraclePrice))
+      expect(await btcPosition()).to.equal(largeDeposit.mul(leverage).div(5).div(btcOriginalOraclePrice))
     })
 
     it('reverts when below settlement fee', async () => {

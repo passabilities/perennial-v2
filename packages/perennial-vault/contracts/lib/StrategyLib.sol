@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import "hardhat/console.sol";
 import "../types/Registration.sol";
 
 /// @title Strategy
@@ -89,6 +90,7 @@ library StrategyLib {
                 _locals.marketAssets = UFixed6Lib.ZERO;
 
             (_locals.minPosition, _locals.maxPosition) = _positionLimit(contexts[marketId]);
+            console.log("max", UFixed6.unwrap(_locals.maxPosition));
 
             (targets[marketId].collateral, targets[marketId].position) = (
                 Fixed6Lib.from(_locals.marketCollateral).sub(contexts[marketId].local.collateral),
@@ -129,8 +131,11 @@ library StrategyLib {
 
         // current position
         Position memory latestPosition = registration.market.position();
+        console.log("latest.invalid", UFixed6.unwrap(latestPosition.invalidation.maker.abs()));
         context.currentPosition = registration.market.pendingPosition(global.currentId);
+        console.log("invalid", UFixed6.unwrap(context.currentPosition.invalidation.maker.abs()), UFixed6.unwrap(latestPosition.invalidation.maker.abs()));
         context.currentPosition.adjust(latestPosition);
+        console.log("current", UFixed6.unwrap(context.currentPosition.maker));
     }
 
     /// @notice Loads one position for the context calculation

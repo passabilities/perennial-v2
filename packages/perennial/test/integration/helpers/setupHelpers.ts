@@ -179,15 +179,19 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   }
 }
 
-export async function fundWallet(dsu: IERC20Metadata, wallet: SignerWithAddress): Promise<void> {
+export async function fundWallet(
+  dsu: IERC20Metadata,
+  wallet: SignerWithAddress,
+  amount = utils.parseEther('200000'),
+): Promise<void> {
   const dsuMinter = await impersonate.impersonateWithBalance(DSU_MINTER, utils.parseEther('10'))
   const dsuIface = new utils.Interface(['function mint(uint256)'])
   await dsuMinter.sendTransaction({
     to: dsu.address,
     value: 0,
-    data: dsuIface.encodeFunctionData('mint', [utils.parseEther('200000')]),
+    data: dsuIface.encodeFunctionData('mint', [amount]),
   })
-  await dsu.connect(dsuMinter).transfer(wallet.address, utils.parseEther('200000'))
+  await dsu.connect(dsuMinter).transfer(wallet.address, amount)
 }
 
 export async function createMarket(
